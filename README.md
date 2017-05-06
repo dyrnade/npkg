@@ -4,7 +4,7 @@ This is inspired from awesome SolusOS's ypkg.
 
 For now, it handles some fields. This is an attempt for making packaging with Nix easy.
 
-**Dependencies:** nix-prefetch-url and nix-prefetch-git *(if you will use only one of them, then other is not necessary)*
+**Dependencies:** nix-prefetch-url and nix-prefetch-git *(if you use only one of them, then other is not necessary)*
 
 If you run, you will have something like this.
 
