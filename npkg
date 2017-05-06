@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#set -x
+
+url="$1"
+extension="${url##*.}" # take the extension
+
+# First check the extension
+if [[ "$extension" != "git" ]] && [[ "$extension" != "gz" ]]; then
+    echo "Your link should end up with .tar.gz or .git"
+    echo "Please, provide one!!!"
+    exit 0
+fi
+
+# Extract path, rev, sha256 for fetchgit
+prefetch-git () {
+    path=$(cat "$tmp1" | grep path | cut -d " " -f3 | sed "s/\"//g; s/,//")
+    rev=$(cat "$tmp2" | grep rev | cut -d " " -f4 | sed "s/,//")
+    sha256=$(cat "$tmp2" | grep sha256 | cut -d " " -f4 | sed "s/,//")
+}
+
+# Extract path and sha256 for fetchurl
+prefetch-url() {
+    path=$(cat "$tmpPath" | cut -d " " -f3 | tr -d "’‘")
+    sha256=$(cat "$tmpHash")
+}
+
+# Handle license. Need to find another way :D
+licenses() {
+    file="$path"/LICENSE
+    if [[ -e "$file" ]]; then
+        oneLineLicense=$(cat "$file" | sed '1,2!d' | cut -d "," -f1 | tr -d "\n ") # Get only, first two lines and delete spaces and new lines
+        license=""
+        case "$oneLineLicense" in
+            GNUGENERALPUBLICLICENSEVersion3)
+                license=gpl3
+                ;;
+            GNUGENERALPUBLICLICENSEVersion2)
+                license=gpl2
+                ;;
+            GNULESSERGENERALPUBLICLICENSEVersion3)
+                license=lgpl3
+                ;;
+            GNUAFFEROGENERALPUBLICLICENSEVersion3)
+                license=agpl3
+                ;;
+            ApacheLicenseVersion2.0)
+                license=asl20
+                ;;
+            *)
+                license=unlicensed
+                ;;
+        esac
+    fi
+}
+
+# Put all collected information to fields.
+main () {
+    if [[ "$extension" = "$tar" ]]; then
+        tmpPath=$(mktemp /tmp/url1-XXXXXX)
+        tmpHash=$(mktemp /tmp/url2-XXXXXX)
+        if [[ -e "$tmpPath" ]] && [[ -e "$tmpHash" ]]; then
+            nix-prefetch-url "$1" 2>"$tmpPath">"$tmpHash"
+            if test $? -ne 0; then
+                echo "Failed: Couldn't download..."
+                exit 1
+            fi
+            prefetch-url
+        fi
+        licenses
+        name="${1##*/}"
+        cat <<EOF
+
+{stdenv, fetchurl}:
+
+stdenv.mkDerivation {
+  name = "$name";
+
+  src = fetchurl {
+     url = $url;
+     sha256 = "$sha256";
+  }
+
+  buildInputs = [];
+
+  meta = with stdenv.lib; {
+    homepage = $url;
+    description = "";
+    license = licenses.$license;
+    platforms = platforms.linux;
+    maintainers = ;
+};
+EOF
+
+    else
+        tmp1=$(mktemp /tmp/git1-XXXXXX)
+        tmp2=$(mktemp /tmp/git2-XXXXXX)
+        if [[ -e "$tmp1" ]] && [[ -e "$tmp2" ]]; then
+            nix-prefetch-git "$1" 2>"$tmp1">"$tmp2"
+            if test $? -ne 0; then
+                echo "Failed: Couldn't download..."
+                exit 1
+            fi
+            prefetch-git
+        fi
+        licenses
+        name=$(echo "${1##*/}" | cut -d "." -f1)
+        cat <<EOF
+{stdenv, fetchgit}:
+
+stdenv.mkDerivation {
+  name = "$name";
+
+  src = fetchgit {
+    url = $url;
+    rev = $rev;
+    sha256 = $sha256;
+  };
+
+  buildInputs = [];
+
+  meta = with stdenv.lib; {
+    homepage = $url;
+    description = "";
+    license = licenses.$license;
+    platforms = platforms.linux;
+    maintainers = ;
+};
+EOF
+    fi
+}
+
+main "$@"
