@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 #set -x
 
+# First check, if user pass any link
+if test $# -eq 0; then
+    echo "You didn't provide any link."
+    exit 1
+fi
+
 url="$1"
 extension="${url##*.}" # take the extension
 
-# First check the extension
+# Check the extension
 if [[ "$extension" != "git" ]] && [[ "$extension" != "gz" ]]; then
     echo "Your link should end up with .tar.gz or .git"
     echo "Please, provide one!!!"
