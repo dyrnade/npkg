@@ -88,7 +88,8 @@ stdenv.mkDerivation {
     license = licenses.$license;
     platforms = platforms.linux;
     maintainers = ;
-};
+  };
+}
 EOF
 
     else
@@ -124,7 +125,8 @@ stdenv.mkDerivation {
     license = licenses.$license;
     platforms = platforms.linux;
     maintainers = ;
-};
+  };
+}
 EOF
     fi
 }
